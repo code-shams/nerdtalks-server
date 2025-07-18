@@ -2,12 +2,35 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion } = require("mongodb");
+const admin = require("firebase-admin");
+const serviceAccount = require("./decrypter.js");
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount()),
+});
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+const verifyToken = (req, res, next) => {
+    const token = req.headers?.authorization;
+    if (!token || !token.startsWith("Bearer ")) {
+        return res.status(401).send({ message: "Unauthorized Access Denied" });
+    }
+    const accessToken = token.split(" ")[1];
+    admin
+        .auth()
+        .verifyIdToken(accessToken)
+        .then((decoded) => {
+            req.decoded = decoded;
+            next();
+        })
+        .catch((err) => {
+            res.status(403).send({ message: "Forbidden Access", error: err });
+        });
+};
 
 app.get("/", (req, res) => {
     res.send(`Nerds are talking`);
@@ -35,7 +58,25 @@ async function run() {
             "Pinged your deployment. You successfully connected to MongoDB!"
         );
 
-        // ?user creation POST API
+        // ?USER - GET API
+        app.get("/users/:uid", verifyToken, async (req, res) => {
+            const { uid } = req.params;
+
+            try {
+                const user = await usersCollection.findOne({ uid });
+
+                if (!user) {
+                    return res.status(404).json({ message: "User not found." });
+                }
+
+                res.status(200).json(user);
+            } catch (error) {
+                console.error("Error fetching user:", error);
+                res.status(500).json({ message: "Internal server error." });
+            }
+        });
+
+        // ?USER - POST API
         app.post("/users", async (req, res) => {
             const { uid, name, email, avatar } = req.body;
             if (!uid || !name || !email) {
