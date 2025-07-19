@@ -126,8 +126,15 @@ async function run() {
 
         // ?POST CREATE - POST API
         app.post("/posts", verifyToken, async (req, res) => {
-            const { title, content, tag, authorId, authorName, authorEmail } =
-                req.body;
+            const {
+                title,
+                content,
+                tag,
+                authorId,
+                authorName,
+                authorEmail,
+                authorImage,
+            } = req.body;
 
             // Basic validation
             if (
@@ -136,6 +143,7 @@ async function run() {
                 !tag ||
                 !authorId ||
                 !authorName ||
+                !authorImage ||
                 !authorEmail
             ) {
                 return res
@@ -151,6 +159,7 @@ async function run() {
                     authorId: new ObjectId(authorId),
                     authorName,
                     authorEmail,
+                    authorImage,
                     upvotes: 0,
                     downvotes: 0,
                     createdAt: new Date(),
