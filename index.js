@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const admin = require("firebase-admin");
 const serviceAccount = require("./decrypter.js");
 
@@ -49,22 +49,10 @@ const client = new MongoClient(uri, {
 
 const db = client.db("nerdtalks");
 const usersCollection = db.collection("users");
+const postsCollection = db.collection("posts");
 
 async function run() {
     try {
-        //* Send a ping to confirm a successful connection
-        // await client.db("admin").command({ ping: 1 });
-        // console.log(
-        //     "Pinged your deployment. You successfully connected to MongoDB!"
-        // );
-
-        app.get("/users", async (req, res) => {
-            console.log("hitting the api");
-            const query = {};
-            const result = await usersCollection.find(query).toArray();
-            res.send(result);
-        });
-
         // ?USER - GET API
         app.get("/users/:uid", verifyToken, async (req, res) => {
             const { uid } = req.params;
@@ -116,6 +104,50 @@ async function run() {
                 });
             } catch {
                 console.error("Error creating user:", error);
+                res.status(500).json({ message: "Internal server error." });
+            }
+        });
+
+        // ?POST ADD - POST API
+        app.post("/posts", async (req, res) => {
+            const { title, content, tag, authorId, authorName, authorEmail } =
+                req.body;
+
+            // Basic validation
+            if (
+                !title ||
+                !content ||
+                !tag ||
+                !authorId ||
+                !authorName ||
+                !authorEmail
+            ) {
+                return res
+                    .status(400)
+                    .json({ message: "Missing required fields." });
+            }
+
+            try {
+                const post = {
+                    title,
+                    content,
+                    tag,
+                    authorId: new ObjectId(authorId),
+                    authorName,
+                    authorEmail,
+                    upvotes: 0,
+                    downvotes: 0,
+                    createdAt: new Date(),
+                };
+
+                const result = await postsCollection.insertOne(post);
+
+                res.status(201).json({
+                    message: "Post created successfully.",
+                    postId: result.insertedId,
+                });
+            } catch (error) {
+                console.error("Error creating post:", error);
                 res.status(500).json({ message: "Internal server error." });
             }
         });
