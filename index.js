@@ -108,8 +108,24 @@ async function run() {
             }
         });
 
-        // ?POST ADD - POST API
-        app.post("/posts", async (req, res) => {
+        //?POST READ - GET API
+        app.get("/posts/user/:authorId", verifyToken, async (req, res) => {
+            const authorId = req.params.authorId;
+
+            try {
+                const posts = await postsCollection
+                    .find({ authorId: new ObjectId(authorId) })
+                    .sort({ createdAt: -1 }) // optional: latest first
+                    .toArray();
+
+                res.status(200).json(posts);
+            } catch {
+                res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
+        // ?POST CREATE - POST API
+        app.post("/posts", verifyToken, async (req, res) => {
             const { title, content, tag, authorId, authorName, authorEmail } =
                 req.body;
 
