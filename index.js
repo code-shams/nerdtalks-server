@@ -53,10 +53,17 @@ const usersCollection = db.collection("users");
 async function run() {
     try {
         //* Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log(
-            "Pinged your deployment. You successfully connected to MongoDB!"
-        );
+        // await client.db("admin").command({ ping: 1 });
+        // console.log(
+        //     "Pinged your deployment. You successfully connected to MongoDB!"
+        // );
+
+        app.get("/users", async (req, res) => {
+            console.log("hitting the api");
+            const query = {};
+            const result = await usersCollection.find(query).toArray();
+            res.send(result);
+        });
 
         // ?USER - GET API
         app.get("/users/:uid", verifyToken, async (req, res) => {
