@@ -110,25 +110,83 @@ async function run() {
         });
 
         //?POST ALL - GET API
-        app.get("/posts", async (req, res) => {
-            const searchTerm = req?.query?.searchTerm;
-            console.log(searchTerm);
-            let query = {};
+        // app.get("/posts", async (req, res) => {
+        //     const searchTerm = req?.query?.searchTerm;
+        //     console.log(searchTerm);
+        //     let query = {};
 
-            if (searchTerm) {
-                query = {
-                    tag: { $regex: searchTerm, $options: "i" }, // Case-insensitive match
-                };
+        //     if (searchTerm) {
+        //         query = {
+        //             tag: { $regex: searchTerm, $options: "i" }, // Case-insensitive match
+        //         };
+        //     }
+        //     try {
+        //         const posts = await postsCollection
+        //             .find(query)
+        //             .sort({ createdAt: -1 }) // optional: latest first
+        //             .toArray();
+
+        //         res.status(200).json(posts);
+        //     } catch (error) {
+        //         res.status(500).json({ message: "Internal Server Error" });
+        //     }
+        // });
+        app.get("/posts", async (req, res) => {
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 5;
+            const sortByPopularity = req.query.sortByPopularity === "true";
+            const tag = req.query.tag;
+
+            const skip = (page - 1) * limit;
+
+            let sortOption = { createdAt: -1 }; // default: latest first
+
+            if (sortByPopularity) {
+                sortOption = { popularity: -1, createdAt: -1 }; // secondary sort by time
             }
+
+            // Build match query
+            let match = {};
+            if (tag) {
+                match.tag = { $regex: new RegExp(`^${tag}$`, "i") }; // case-insensitive exact tag
+            }
+
             try {
+                const pipeline = [
+                    { $match: match },
+                    {
+                        $addFields: {
+                            popularity: { $subtract: ["$upvote", "$downvote"] },
+                        },
+                    },
+                    {
+                        $sort: sortOption,
+                    },
+                    {
+                        $skip: skip,
+                    },
+                    {
+                        $limit: limit,
+                    },
+                ];
+
                 const posts = await postsCollection
-                    .find(query)
-                    .sort({ createdAt: -1 }) // optional: latest first
+                    .aggregate(pipeline)
                     .toArray();
 
-                res.status(200).json(posts);
+                const total = await postsCollection.countDocuments();
+
+                res.status(200).json({
+                    posts,
+                    total,
+                    currentPage: page,
+                    totalPages: Math.ceil(total / limit),
+                });
             } catch (error) {
-                res.status(500).json({ message: "Internal Server Error" });
+                res.status(500).json({
+                    message: "Internal Server Error",
+                    error,
+                });
             }
         });
 
