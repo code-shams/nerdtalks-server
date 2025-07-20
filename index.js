@@ -108,7 +108,7 @@ async function run() {
             }
         });
 
-        //?POST READ - GET API
+        //?POST READ by User - GET API
         app.get("/posts/user/:authorId", verifyToken, async (req, res) => {
             const authorId = req.params.authorId;
 
@@ -175,6 +175,26 @@ async function run() {
                 console.error("Error creating post:", error);
                 res.status(500).json({ message: "Internal server error." });
             }
+        });
+
+        //?POST - DELETE API
+        app.delete("/posts/:id", verifyToken, async (req, res) => {
+            const postId = req.params.id;
+            console.log(postId);
+            res.send("hitted delete");
+
+            // try {
+            //     const result = await postsCollection.deleteOne({
+            //         _id: new ObjectId(postId),
+            //     });
+
+            //     if (result.deletedCount === 0) {
+            //         return res.status(404).json({ message: "Post not found" });
+            //     }
+            //     res.status(200).json({ message: "Post deleted successfully" });
+            // } catch {
+            //     res.status(500).json({ message: "Internal Server Error" });
+            // }
         });
     } finally {
     }
