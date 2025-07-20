@@ -109,10 +109,33 @@ async function run() {
             }
         });
 
+        //?POST ALL - GET API
+        app.get("/posts", async (req, res) => {
+            const searchTerm = req?.query?.searchTerm;
+            console.log(searchTerm);
+            let query = {};
+
+            if (searchTerm) {
+                query = {
+                    tag: { $regex: searchTerm, $options: "i" }, // Case-insensitive match
+                };
+            }
+            try {
+                const posts = await postsCollection
+                    .find(query)
+                    .sort({ createdAt: -1 }) // optional: latest first
+                    .toArray();
+
+                res.status(200).json(posts);
+            } catch (error) {
+                res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
         //?POST by Specific User - GET API
         app.get("/posts/user/:authorId", verifyToken, async (req, res) => {
             const authorId = req.params.authorId;
-            const limit = parseInt(req.query.limit) || 0;   
+            const limit = parseInt(req.query.limit) || 0;
             try {
                 const posts = await postsCollection
                     .find({ authorId: new ObjectId(authorId) })
