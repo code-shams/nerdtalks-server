@@ -112,11 +112,12 @@ async function run() {
         //?POST by Specific User - GET API
         app.get("/posts/user/:authorId", verifyToken, async (req, res) => {
             const authorId = req.params.authorId;
-
+            const limit = parseInt(req.query.limit) || 0;   
             try {
                 const posts = await postsCollection
                     .find({ authorId: new ObjectId(authorId) })
                     .sort({ createdAt: -1 }) // optional: latest first
+                    .limit(limit)
                     .toArray();
 
                 res.status(200).json(posts);
@@ -235,7 +236,6 @@ async function run() {
                 res.status(500).json({ message: "Internal Server Error" });
             }
         });
-        
     } finally {
     }
 }
