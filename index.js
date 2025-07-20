@@ -50,6 +50,7 @@ const client = new MongoClient(uri, {
 const db = client.db("nerdtalks");
 const usersCollection = db.collection("users");
 const postsCollection = db.collection("posts");
+const tagsCollection = db.collection("tags");
 
 async function run() {
     try {
@@ -108,7 +109,7 @@ async function run() {
             }
         });
 
-        //?POST READ by User - GET API
+        //?POST by Specific User - GET API
         app.get("/posts/user/:authorId", verifyToken, async (req, res) => {
             const authorId = req.params.authorId;
 
@@ -180,22 +181,61 @@ async function run() {
         //?POST - DELETE API
         app.delete("/posts/:id", verifyToken, async (req, res) => {
             const postId = req.params.id;
-            console.log(postId);
-            res.send("hitted delete");
 
-            // try {
-            //     const result = await postsCollection.deleteOne({
-            //         _id: new ObjectId(postId),
-            //     });
+            try {
+                const result = await postsCollection.deleteOne({
+                    _id: new ObjectId(postId),
+                });
 
-            //     if (result.deletedCount === 0) {
-            //         return res.status(404).json({ message: "Post not found" });
-            //     }
-            //     res.status(200).json({ message: "Post deleted successfully" });
-            // } catch {
-            //     res.status(500).json({ message: "Internal Server Error" });
-            // }
+                if (result.deletedCount === 0) {
+                    return res.status(404).json({ message: "Post not found" });
+                }
+
+                res.status(200).json({ message: "Post deleted successfully" });
+            } catch {
+                res.status(500).json({ message: "Internal Server Error" });
+            }
         });
+
+        // ?TAGS - GET API
+        app.get("/tags", async (req, res) => {
+            try {
+                const tags = await tagsCollection.find().toArray();
+                res.status(200).json(tags);
+            } catch (error) {
+                res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
+        // ?TAGS - POST API
+        app.post("/tags", async (req, res) => {
+            try {
+                const { name, description, icon } = req.body;
+
+                if (!name || !description || !icon) {
+                    return res
+                        .status(400)
+                        .json({ message: "All fields are required" });
+                }
+
+                const newTag = {
+                    name,
+                    description,
+                    icon,
+                    usageCount: 0,
+                    createdAt: new Date(),
+                };
+
+                const result = await tagsCollection.insertOne(newTag);
+                res.status(201).json({
+                    message: "Tag added successfully",
+                    id: result.insertedId,
+                });
+            } catch (error) {
+                res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+        
     } finally {
     }
 }
