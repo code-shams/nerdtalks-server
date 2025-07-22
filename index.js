@@ -319,6 +319,28 @@ async function run() {
             }
         });
 
+        // ?COMMENTS - GET API
+        app.get("/comments/:postId", async (req, res) => {
+            try {
+                const { postId } = req.params;
+
+                if (!postId) {
+                    return res
+                        .status(400)
+                        .json({ message: "Post ID is required." });
+                }
+
+                const comments = await commentsCollection
+                    .find({ postId: new ObjectId(postId) })
+                    .sort({ createdAt: -1 }) // newest first
+                    .toArray();
+
+                res.status(200).json(comments);
+            } catch (error) {
+                res.status(500).json({ message: "Failed to fetch comments." });
+            }
+        });
+
         // ?COMMENTS - POST API
         app.post("/comments", verifyToken, async (req, res) => {
             try {
