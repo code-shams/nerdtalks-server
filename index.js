@@ -51,6 +51,7 @@ const db = client.db("nerdtalks");
 const usersCollection = db.collection("users");
 const postsCollection = db.collection("posts");
 const tagsCollection = db.collection("tags");
+const announcementsCollection = db.collection("announcements");
 
 async function run() {
     try {
@@ -110,27 +111,6 @@ async function run() {
         });
 
         //?POST ALL - GET API
-        // app.get("/posts", async (req, res) => {
-        //     const searchTerm = req?.query?.searchTerm;
-        //     console.log(searchTerm);
-        //     let query = {};
-
-        //     if (searchTerm) {
-        //         query = {
-        //             tag: { $regex: searchTerm, $options: "i" }, // Case-insensitive match
-        //         };
-        //     }
-        //     try {
-        //         const posts = await postsCollection
-        //             .find(query)
-        //             .sort({ createdAt: -1 }) // optional: latest first
-        //             .toArray();
-
-        //         res.status(200).json(posts);
-        //     } catch (error) {
-        //         res.status(500).json({ message: "Internal Server Error" });
-        //     }
-        // });
         app.get("/posts", async (req, res) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 5;
@@ -312,6 +292,66 @@ async function run() {
                 res.status(201).json({
                     message: "Tag added successfully",
                     id: result.insertedId,
+                });
+            } catch (error) {
+                res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
+        // ?ADMIN ANNOUNCEMENTS - GET API
+        app.get("/announcements", async (req, res) => {
+            try {
+                const announcements = await announcementsCollection
+                    .find({})
+                    .sort({ pinned: -1, createdAt: -1 }) // Pinned first, then latest
+                    .toArray();
+
+                res.status(200).json(announcements);
+            } catch (error) {
+                res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
+        // ?ADMIN ANNOUNCEMENTS - POST API
+        app.post("/announcements", async (req, res) => {
+            const {
+                title,
+                message,
+                audience = "all",
+                pinned = false,
+                authorId,
+                authorName,
+                authorEmail,
+                authorImage,
+            } = req.body;
+
+            // Validate required fields
+            if (!title || !message || !authorId || !authorName) {
+                return res.status(400).json({
+                    message:
+                        "Title, message, authorId, and authorName are required.",
+                });
+            }
+
+            const newAnnouncement = {
+                title,
+                message,
+                audience, // "all" | "users" | "admins" etc.
+                pinned,
+                createdAt: new Date(),
+                authorId: new ObjectId(authorId),
+                authorName,
+                authorEmail,
+                authorImage,
+            };
+
+            try {
+                const result = await announcementsCollection.insertOne(
+                    newAnnouncement
+                );
+                res.status(201).json({
+                    message: "Announcement created successfully.",
+                    insertedId: result.insertedId,
                 });
             } catch (error) {
                 res.status(500).json({ message: "Internal Server Error" });
