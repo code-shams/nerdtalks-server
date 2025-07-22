@@ -170,6 +170,26 @@ async function run() {
             }
         });
 
+        //?POST ALL - GET API
+        app.get("/post/:id", async (req, res) => {
+            const postId = req.params.id || "";
+            // Validate required fields
+            if (!postId) {
+                return res.status(400).json({
+                    message: "Post id not found",
+                });
+            }
+            try {
+                const post = await postsCollection
+                    .find({ _id: new ObjectId(postId) })
+                    .toArray();
+
+                res.status(200).json(post);
+            } catch {
+                res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
         //?POST by Specific User - GET API
         app.get("/posts/user/:authorId", verifyToken, async (req, res) => {
             const authorId = req.params.authorId;
