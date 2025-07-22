@@ -52,6 +52,7 @@ const usersCollection = db.collection("users");
 const postsCollection = db.collection("posts");
 const tagsCollection = db.collection("tags");
 const announcementsCollection = db.collection("announcements");
+const commentsCollection = db.collection("comments");
 
 async function run() {
     try {
@@ -170,7 +171,7 @@ async function run() {
             }
         });
 
-        //?POST ALL - GET API
+        //?POST by Post ID - GET API
         app.get("/post/:id", async (req, res) => {
             const postId = req.params.id || "";
             // Validate required fields
@@ -315,6 +316,45 @@ async function run() {
                 });
             } catch (error) {
                 res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
+        // ?COMMENTS - POST API
+        app.post("/comments", verifyToken, async (req, res) => {
+            try {
+                const { postId, authorId, authorName, authorImage, content } =
+                    req.body;
+                // Basic validation
+                if (
+                    !postId ||
+                    !authorId ||
+                    !authorName ||
+                    !authorImage ||
+                    !content
+                ) {
+                    return res
+                        .status(400)
+                        .json({ message: "Missing required fields." });
+                }
+                const newComment = {
+                    postId: new ObjectId(postId),
+                    authorId: new ObjectId(authorId),
+                    authorName,
+                    authorImage,
+                    content,
+                    upvotes: [],
+                    downvotes: [],
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                };
+
+                const result = await commentsCollection.insertOne(newComment);
+                res.status(201).json({
+                    message: "Comment added successfully",
+                    insertedId: result.insertedId,
+                });
+            } catch (error) {
+                res.status(500).json({ message: "Failed to add comment" });
             }
         });
 
