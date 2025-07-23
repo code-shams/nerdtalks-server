@@ -137,7 +137,12 @@ async function run() {
                     { $match: match },
                     {
                         $addFields: {
-                            popularity: { $subtract: ["$upvote", "$downvote"] },
+                            popularity: {
+                                $subtract: [
+                                    { $size: "$upvote" },
+                                    { $size: "$downvote" },
+                                ],
+                            },
                         },
                     },
                     {
@@ -257,6 +262,42 @@ async function run() {
                 });
             } catch (error) {
                 console.error("Error creating post:", error);
+                res.status(500).json({ message: "Internal server error." });
+            }
+        });
+
+        //?POST VOTING - PATCH API
+        app.patch("/posts/:postId/vote", verifyToken, async (req, res) => {
+            const { postId } = req.params;
+            const { type, email } = req.body;
+
+            if (!["upvote", "downvote"].includes(type) && !email) {
+                return res
+                    .status(400)
+                    .json({ message: "Invalid vote type or email" });
+            }
+
+            try {
+                const filter = { _id: new ObjectId(postId) };
+                const update =
+                    type === "upvote"
+                        ? {
+                              $addToSet: { upvote: email },
+                              $pull: { downvote: email },
+                          }
+                        : {
+                              $addToSet: { downvote: email },
+                              $pull: { upvote: email },
+                          };
+
+                const result = await postsCollection.updateOne(filter, update);
+
+                if (result.modifiedCount === 0) {
+                    return res.status(404).json({ message: "Post not found." });
+                }
+
+                res.status(200).json({ message: `${type} count updated.` });
+            } catch (error) {
                 res.status(500).json({ message: "Internal server error." });
             }
         });
