@@ -199,16 +199,37 @@ async function run() {
         //?POST by Specific User - GET API
         app.get("/posts/user/:authorId", verifyToken, async (req, res) => {
             const authorId = req.params.authorId;
-            const limit = parseInt(req.query.limit) || 0;
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const skip = (page - 1) * limit;
+
             try {
+                // Get paginated posts
                 const posts = await postsCollection
                     .find({ authorId: new ObjectId(authorId) })
-                    .sort({ createdAt: -1 }) // optional: latest first
+                    .sort({ createdAt: -1 }) // Latest first
+                    .skip(skip)
                     .limit(limit)
                     .toArray();
 
-                res.status(200).json(posts);
-            } catch {
+                // Get total count for pagination info
+                const totalPosts = await postsCollection.countDocuments({
+                    authorId: new ObjectId(authorId),
+                });
+
+                const totalPages = Math.ceil(totalPosts / limit);
+
+                res.status(200).json({
+                    posts,
+                    pagination: {
+                        currentPage: page,
+                        totalPages,
+                        totalPosts,
+                        hasNextPage: page < totalPages,
+                        hasPrevPage: page > 1,
+                    },
+                });
+            } catch (error) {
                 res.status(500).json({ message: "Internal Server Error" });
             }
         });
@@ -249,8 +270,8 @@ async function run() {
                     authorName,
                     authorEmail,
                     authorImage,
-                    upvotes: 0,
-                    downvotes: 0,
+                    upvote: [],
+                    downvote: [],
                     createdAt: new Date(),
                 };
 
