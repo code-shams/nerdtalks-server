@@ -292,7 +292,12 @@ async function run() {
             const { postId } = req.params;
             const { type, email } = req.body;
 
-            if (!["upvote", "downvote"].includes(type) && !email) {
+            if (
+                !["upvote", "downvote", "-upvote", "-downvote"].includes(
+                    type
+                ) &&
+                !email
+            ) {
                 return res
                     .status(400)
                     .json({ message: "Invalid vote type or email" });
@@ -300,16 +305,27 @@ async function run() {
 
             try {
                 const filter = { _id: new ObjectId(postId) };
-                const update =
-                    type === "upvote"
-                        ? {
-                              $addToSet: { upvote: email },
-                              $pull: { downvote: email },
-                          }
-                        : {
-                              $addToSet: { downvote: email },
-                              $pull: { upvote: email },
-                          };
+                let update = {};
+                if (type === "-upvote") {
+                    update = {
+                        $pull: { upvote: email },
+                    };
+                } else if (type === "-downvote") {
+                    update = {
+                        $pull: { downvote: email },
+                    };
+                } else {
+                    update =
+                        type === "upvote"
+                            ? {
+                                  $addToSet: { upvote: email },
+                                  $pull: { downvote: email },
+                              }
+                            : {
+                                  $addToSet: { downvote: email },
+                                  $pull: { upvote: email },
+                              };
+                }
 
                 const result = await postsCollection.updateOne(filter, update);
 
@@ -400,6 +416,39 @@ async function run() {
                 res.status(200).json(comments);
             } catch (error) {
                 res.status(500).json({ message: "Failed to fetch comments." });
+            }
+        });
+
+        //?COMMENTS For dashboard - GET API
+        app.get("/comments/post/:postId", async (req, res) => {
+            const { postId } = req.params;
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const skip = (page - 1) * limit;
+
+            try {
+                const query = { postId: new ObjectId(postId) };
+
+                const totalCount = await commentsCollection.countDocuments(
+                    query
+                );
+                const totalPages = Math.ceil(totalCount / limit);
+
+                const comments = await commentsCollection
+                    .find(query)
+                    .sort({ createdAt: -1 }) // Newest first
+                    .skip(skip)
+                    .limit(limit)
+                    .toArray();
+
+                res.status(200).json({
+                    comments,
+                    currentPage: page,
+                    totalPages,
+                    totalCount,
+                });
+            } catch (error) {
+                res.status(500).json({ message: "Internal server error." });
             }
         });
 
