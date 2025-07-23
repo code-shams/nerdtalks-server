@@ -4,6 +4,7 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const admin = require("firebase-admin");
 const serviceAccount = require("./decrypter.js");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount()),
@@ -109,6 +110,31 @@ async function run() {
             } catch {
                 console.error("Error creating user:", error);
                 res.status(500).json({ message: "Internal server error." });
+            }
+        });
+
+        //? PATCH /users/:uid/badges
+        app.patch("/users/:uid/badges", async (req, res) => {
+            const { uid } = req.params;
+            const { badge } = req.body;
+
+            if (!badge) {
+                return res.status(400).json({ error: "Badge is required" });
+            }
+
+            try {
+                const result = await usersCollection.updateOne(
+                    { uid },
+                    { $addToSet: { badges: badge } }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({ error: "User not found" });
+                }
+
+                res.send({ message: "Badge updated successfully", result });
+            } catch (error) {
+                res.status(500).json({ error: "Internal Server Error" });
             }
         });
 
@@ -589,6 +615,20 @@ async function run() {
                 });
             } catch (error) {
                 res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
+        //? Create PaymentIntent API
+        app.post("/create-payment-intent", verifyToken, async (req, res) => {
+            const { amount } = req.body; // amount in cents
+            try {
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount,
+                    currency: "usd",
+                });
+                res.send({ clientSecret: paymentIntent.client_secret });
+            } catch (error) {
+                res.status(500).send({ error: error.message });
             }
         });
     } finally {
