@@ -53,6 +53,7 @@ const postsCollection = db.collection("posts");
 const tagsCollection = db.collection("tags");
 const announcementsCollection = db.collection("announcements");
 const commentsCollection = db.collection("comments");
+const reportsCollection = db.collection("reports");
 
 async function run() {
     try {
@@ -488,6 +489,46 @@ async function run() {
                 });
             } catch (error) {
                 res.status(500).json({ message: "Failed to add comment" });
+            }
+        });
+
+        //? REPORTS (comment) - POST API
+        app.post("/reports/comment", verifyToken, async (req, res) => {
+            const { commentId, postId, reportedBy, reason, commentContent } =
+                req.body;
+
+            // Basic validation
+            if (
+                !commentId ||
+                !postId ||
+                !reportedBy ||
+                !reason ||
+                !commentContent
+            ) {
+                return res
+                    .status(400)
+                    .json({ message: "Missing required fields." });
+            }
+
+            try {
+                const report = {
+                    reportType: "comment",
+                    commentId: new ObjectId(commentId),
+                    postId: new ObjectId(postId),
+                    reportedBy: new ObjectId(reportedBy),
+                    reason,
+                    commentContent,
+                    createdAt: new Date(),
+                };
+
+                const result = await reportsCollection.insertOne(report);
+
+                res.status(201).json({
+                    message: "Comment reported successfully.",
+                    reportId: result.insertedId,
+                });
+            } catch (error) {
+                res.status(500).json({ message: "Internal Server Error" });
             }
         });
 
