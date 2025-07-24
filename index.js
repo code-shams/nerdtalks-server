@@ -664,6 +664,41 @@ async function run() {
             }
         });
 
+        //? REPORTS status - PATCH API
+        app.patch("/reports/:id/status", verifyToken, async (req, res) => {
+            const { id } = req.params;
+            const { status } = req.body;
+
+            // Validate the incoming status
+            const validStatuses = ["pending", "resolved", "dismissed"];
+            if (!validStatuses.includes(status)) {
+                return res.status(400).json({ error: "Invalid status value." });
+            }
+
+            try {
+                const result = await reportsCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    {
+                        $set: {
+                            status,
+                            updatedAt: new Date(),
+                        },
+                    }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({ error: "Report not found." });
+                }
+
+                res.status(200).json({
+                    message: "Report status updated successfully.",
+                    result,
+                });
+            } catch (error) {
+                res.status(500).json({ error: "Internal Server Error" });
+            }
+        });
+
         // ?ADMIN ANNOUNCEMENTS - GET API
         app.get("/announcements", async (req, res) => {
             try {
