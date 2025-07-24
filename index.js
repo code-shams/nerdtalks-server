@@ -76,6 +76,42 @@ async function run() {
             }
         });
 
+        //? USERS FOR ADMIN - GET API
+        //* verify admin
+        app.get("/users", verifyToken, async (req, res) => {
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const search = req.query.search || "";
+
+            const query = search
+                ? {
+                      $or: [
+                          { name: { $regex: search, $options: "i" } },
+                          { email: { $regex: search, $options: "i" } },
+                      ],
+                  }
+                : {};
+
+            try {
+                const totalUsers = await usersCollection.countDocuments(query);
+                const users = await usersCollection
+                    .find(query)
+                    .skip((page - 1) * limit)
+                    .limit(limit)
+                    .sort({ createdAt: -1 }) // Optional: newest users first
+                    .toArray();
+
+                res.status(200).json({
+                    totalUsers,
+                    totalPages: Math.ceil(totalUsers / limit),
+                    currentPage: page,
+                    users,
+                });
+            } catch (error) {
+                res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
         // ?USER - POST API
         app.post("/users", async (req, res) => {
             const { uid, name, email, avatar } = req.body;
@@ -114,7 +150,7 @@ async function run() {
         });
 
         //? PATCH /users/:uid/badges
-        app.patch("/users/:uid/badges", async (req, res) => {
+        app.patch("/users/:uid/badges", verifyToken, async (req, res) => {
             const { uid } = req.params;
             const { badge } = req.body;
 
@@ -396,7 +432,8 @@ async function run() {
         });
 
         // ?TAGS - POST API
-        app.post("/tags", async (req, res) => {
+        //* Add verify admin to it.
+        app.post("/tags", verifyToken, async (req, res) => {
             try {
                 const { name, description, icon } = req.body;
 
@@ -447,7 +484,7 @@ async function run() {
         });
 
         //?COMMENTS For dashboard - GET API
-        app.get("/comments/post/:postId", async (req, res) => {
+        app.get("/comments/post/:postId", verifyToken, async (req, res) => {
             const { postId } = req.params;
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -573,7 +610,8 @@ async function run() {
         });
 
         // ?ADMIN ANNOUNCEMENTS - POST API
-        app.post("/announcements", async (req, res) => {
+        //* verify admin
+        app.post("/announcements", verifyToken, async (req, res) => {
             const {
                 title,
                 message,
