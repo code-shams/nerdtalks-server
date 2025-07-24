@@ -77,7 +77,7 @@ async function run() {
         });
 
         //? USERS FOR ADMIN - GET API
-        //* verify admin
+        //TODO: verify admin
         app.get("/users", verifyToken, async (req, res) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
@@ -463,7 +463,7 @@ async function run() {
         });
 
         // ?TAGS - POST API
-        //* Add verify admin to it.
+        //TODO: verify admin
         app.post("/tags", verifyToken, async (req, res) => {
             try {
                 const { name, description, icon } = req.body;
@@ -586,6 +586,43 @@ async function run() {
             }
         });
 
+        //? REPORTS - GET API
+        //TODO: verify admin
+        app.get("/reports", verifyToken, async (req, res) => {
+            try {
+                const page = parseInt(req.query.page) || 1;
+                const limit = parseInt(req.query.limit) || 10;
+                const status = req.query.status;
+
+                const query = {};
+                if (status && status !== "all") {
+                    query.status = status;
+                }
+
+                const skip = (page - 1) * limit;
+
+                const [totalReports, reports] = await Promise.all([
+                    reportsCollection.countDocuments(query),
+                    reportsCollection
+                        .find(query)
+                        .sort({ createdAt: -1 }) // Newest first
+                        .skip(skip)
+                        .limit(limit)
+                        .toArray(),
+                ]);
+
+                res.status(200).json({
+                    totalReports,
+                    totalPages: Math.ceil(totalReports / limit),
+                    currentPage: page,
+                    reports,
+                });
+            } catch (error) {
+                console.error("Failed to fetch reports:", error);
+                res.status(500).json({ message: "Internal Server Error" });
+            }
+        });
+
         //? REPORTS (comment) - POST API
         app.post("/reports/comment", verifyToken, async (req, res) => {
             const { commentId, postId, reportedBy, reason, commentContent } =
@@ -609,9 +646,10 @@ async function run() {
                     reportType: "comment",
                     commentId: new ObjectId(commentId),
                     postId: new ObjectId(postId),
-                    reportedBy: new ObjectId(reportedBy),
+                    reportedBy,
                     reason,
                     commentContent,
+                    status: "pending",
                     createdAt: new Date(),
                 };
 
@@ -641,7 +679,7 @@ async function run() {
         });
 
         // ?ADMIN ANNOUNCEMENTS - POST API
-        //* verify admin
+        //TODO: verify admin
         app.post("/announcements", verifyToken, async (req, res) => {
             const {
                 title,
