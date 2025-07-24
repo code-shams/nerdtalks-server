@@ -149,7 +149,7 @@ async function run() {
             }
         });
 
-        //? PATCH /users/:uid/badges
+        //? USER BADGE - PATCH API
         app.patch("/users/:uid/badges", verifyToken, async (req, res) => {
             const { uid } = req.params;
             const { badge } = req.body;
@@ -170,6 +170,37 @@ async function run() {
 
                 res.send({ message: "Badge updated successfully", result });
             } catch (error) {
+                res.status(500).json({ error: "Internal Server Error" });
+            }
+        });
+
+        //? USER BADGE - PATCH API
+        app.patch("/users/:id/make-admin", verifyToken, async (req, res) => {
+            const { id } = req.params;
+
+            if (!ObjectId.isValid(id)) {
+                return res
+                    .status(400)
+                    .json({ error: "Invalid user ID format" });
+            }
+
+            try {
+                const result = await usersCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { role: "admin" } }
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).json({ error: "User not found" });
+                }
+
+                res.status(200).json({
+                    message: "Role updated successfully",
+                    modifiedCount: result.modifiedCount,
+                    newRole: "admin",
+                });
+            } catch (error) {
+                console.error("Error updating user role:", error);
                 res.status(500).json({ error: "Internal Server Error" });
             }
         });
