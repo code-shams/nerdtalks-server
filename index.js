@@ -270,6 +270,29 @@ async function run() {
             }
         });
 
+        //?POST by specific basic user - GET API
+        app.get(
+            "/posts/basic-user/:authorId",
+            verifyToken,
+            async (req, res) => {
+                const authorId = req.params.authorId || "";
+                if (!authorId) {
+                    return res.status(400).json({
+                        message: "Author id not found",
+                    });
+                }
+                try {
+                    const post = await postsCollection
+                        .find({ authorId: new ObjectId(authorId) })
+                        .toArray();
+
+                    res.status(200).json(post);
+                } catch {
+                    res.status(500).json({ message: "Internal Server Error" });
+                }
+            }
+        );
+
         //?POST by Post ID - GET API
         app.get("/post/:id", async (req, res) => {
             const postId = req.params.id || "";
@@ -290,7 +313,7 @@ async function run() {
             }
         });
 
-        //?POST by Specific User - GET API
+        //?POST by Specific User for dashboard - GET API
         app.get("/posts/user/:authorId", verifyToken, async (req, res) => {
             const authorId = req.params.authorId;
             const page = parseInt(req.query.page) || 1;
@@ -586,6 +609,31 @@ async function run() {
             }
         });
 
+        // ?COMMENTS - DELETE API
+        //TODO: verify admin
+        app.delete("/comments/:id", verifyToken, async (req, res) => {
+            const { id } = req.params;
+
+            try {
+                const result = await commentsCollection.deleteOne({
+                    _id: new ObjectId(id),
+                });
+
+                if (result.deletedCount === 0) {
+                    return res
+                        .status(404)
+                        .json({ message: "Comment not found." });
+                }
+
+                res.status(200).json({
+                    message: "Comment deleted successfully.",
+                });
+            } catch (error) {
+                console.error("Error deleting comment:", error);
+                res.status(500).json({ message: "Failed to delete comment." });
+            }
+        });
+
         //? REPORTS - GET API
         //TODO: verify admin
         app.get("/reports", verifyToken, async (req, res) => {
@@ -665,6 +713,7 @@ async function run() {
         });
 
         //? REPORTS status - PATCH API
+        //TODO: verify admin
         app.patch("/reports/:id/status", verifyToken, async (req, res) => {
             const { id } = req.params;
             const { status } = req.body;
@@ -695,6 +744,30 @@ async function run() {
                     result,
                 });
             } catch (error) {
+                res.status(500).json({ error: "Internal Server Error" });
+            }
+        });
+
+        //? REPORTS - DELETE API
+        //TODO: verify admin
+        app.delete("/reports/:id/delete", verifyToken, async (req, res) => {
+            const { id } = req.params;
+
+            try {
+                const result = await reportsCollection.deleteOne({
+                    _id: new ObjectId(id),
+                });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).json({ error: "Report not found" });
+                }
+
+                res.status(200).json({
+                    message: "Report deleted successfully",
+                    result,
+                });
+            } catch (error) {
+                console.error("Error deleting report:", error);
                 res.status(500).json({ error: "Internal Server Error" });
             }
         });
