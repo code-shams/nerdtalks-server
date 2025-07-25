@@ -115,6 +115,7 @@ async function run() {
         // ?USER - POST API
         app.post("/users", async (req, res) => {
             const { uid, name, email, avatar } = req.body;
+
             if (!uid || !name || !email) {
                 return res
                     .status(400)
@@ -122,29 +123,36 @@ async function run() {
             }
 
             try {
-                // Prevent duplicate entries (check by uid or email)
-                const existingUser = await usersCollection.findOne({ uid });
-                if (existingUser) {
-                    return res
-                        .status(409)
-                        .json({ message: "User already exists." });
+                const result = await usersCollection.updateOne(
+                    { uid }, // Filter: match by UID
+                    {
+                        $set: {
+                            name,
+                            email,
+                            avatar: avatar || "",
+                        },
+                        $setOnInsert: {
+                            role: "user",
+                            badges: ["bronze"],
+                            joinedAt: new Date(),
+                        },
+                    },
+                    { upsert: true }
+                );
+
+                // Determine if a new user was inserted or an existing one was updated
+                if (result.upsertedCount > 0) {
+                    res.status(201).json({
+                        message: "User created successfully.",
+                        userId: result.upsertedId,
+                    });
+                } else {
+                    res.status(200).json({
+                        message: "User already exists. Info updated if needed.",
+                    });
                 }
-                const user = {
-                    uid,
-                    name,
-                    email,
-                    avatar: avatar || "",
-                    role: "user",
-                    badges: ["bronze"],
-                    joinedAt: new Date(),
-                };
-                const result = await usersCollection.insertOne(user);
-                res.status(201).json({
-                    message: "User created successfully.",
-                    userId: result.insertedId,
-                });
-            } catch {
-                console.error("Error creating user:", error);
+            } catch (error) {
+                console.error("Error creating/updating user:", error);
                 res.status(500).json({ message: "Internal server error." });
             }
         });
@@ -604,6 +612,11 @@ async function run() {
                     message: "Comment added successfully",
                     insertedId: result.insertedId,
                 });
+
+                await postsCollection.updateOne(
+                    { _id: new ObjectId(postId) },
+                    { $inc: { commentsCount: 1 } }
+                );
             } catch (error) {
                 res.status(500).json({ message: "Failed to add comment" });
             }
@@ -624,6 +637,11 @@ async function run() {
                         .status(404)
                         .json({ message: "Comment not found." });
                 }
+
+                await postsCollection.updateOne(
+                    { _id: new ObjectId(postId) },
+                    { $inc: { commentsCount: -1 } }
+                );
 
                 res.status(200).json({
                     message: "Comment deleted successfully.",
