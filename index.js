@@ -833,6 +833,28 @@ async function run() {
             }
         });
 
+        // ?ADMIN STATS - GET API
+        //TODO:  verify admin
+        app.get("/admin/stats", verifyToken, async (req, res) => {
+            try {
+                //* Count documents in each collection
+                const totalUsers =
+                    await usersCollection.estimatedDocumentCount();
+                const totalPosts =
+                    await postsCollection.estimatedDocumentCount();
+                const totalComments =
+                    await commentsCollection.estimatedDocumentCount();
+
+                res.status(200).json({
+                    totalUsers,
+                    totalPosts,
+                    totalComments,
+                });
+            } catch (error) {
+                res.status(500).json({ message: "Internal server error" });
+            }
+        });
+
         //? Create PaymentIntent API
         app.post("/create-payment-intent", verifyToken, async (req, res) => {
             const { amount } = req.body; // amount in cents
